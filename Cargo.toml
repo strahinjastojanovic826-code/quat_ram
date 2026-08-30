@@ -5,6 +5,6 @@ edition = "2024"
 authors = ["Strale <strahinjastojanovic826@gmail.com>"]
 description = "Hardware-agnostic 2-bit quat RAM simulation library."
 license = "AGPL-3.0-or-later"
-repository = "https://github.com/strahinjastojanovic826-code/quat_ram?tab=readme-ov-file"
+repository = "https://github.com/strahinjastojanovic826-code/quat_ram"
 
 [dependencies]
