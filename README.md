@@ -21,13 +21,15 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-quat_ram = "0.1.0"
+quat_ram = "0.1.1"
+```
 
-💡 Quick Start
+## 💡 Quick Start
 
 Here is a quick example showing how to initialize the RAM, write quats, and read them back safely:
 
-use quat_ram::{QuatRam, CpuEror};
+```rust
+use quat_ram::{QuatRam, CpuError};
 
 fn main() -> Result<(), CpuError> {
     // Allocate RAM for 8 quats (which physically takes exactly 2 bytes)
@@ -42,16 +44,19 @@ fn main() -> Result<(), CpuError> {
     assert_eq!(ram.read_quat(0)?, 3);
     assert_eq!(ram.read_quat(1)?, 1);
     assert_eq!(ram.read_quat(5)?, 2);
-    
+
     // Unwritten addresses default to 0
     assert_eq!(ram.read_quat(2)?, 0);
 
     println!("Quat RAM simulation ran successfully!");
     Ok(())
 }
+```
 
-🛠️ Running Tests
+## 🛠 Running Tests
 
 To run the full suite of unit tests, use Cargo:
 
+```bash
 cargo test
+```
