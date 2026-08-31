@@ -29,28 +29,30 @@ quat_ram = "0.1.1"
 Here is a quick example showing how to initialize the RAM, write quats, and read them back safely:
 
 ```rust
-use quat_ram::{QuatRam, CpuError};
+
+use quat_ram::{QuatCpu, QuatRam, CpuError};
 
 fn main() -> Result<(), CpuError> {
-    // Allocate RAM for 8 quats (which physically takes exactly 2 bytes)
+    println!("--- Emulacija CPU-a ---");
+    let mut cpu = QuatCpu::new();
+    // Učitavamo bitove 1 i 1 (što daju kvat vrednost 3) u registar 0
+    cpu.load(0, 1, 1)?;
+    println!("Vrednost u registru 0: {}", cpu.registers[0]);
+
+    println!("\n--- Emulacija RAM-a ---");
     let mut ram = QuatRam::new(8);
+    // Upisujemo kvat vrednosti (0..3) na adrese u RAM-u
+    ram.write_quat(0, 3)?;
+    ram.write_quat(1, 1)?;
 
-    // Write quats (values 0..3) to specific quat addresses
-    ram.write_quat(0, 3)?; // Quat 0 -> binary 11
-    ram.write_quat(1, 1)?; // Quat 1 -> binary 01
-    ram.write_quat(5, 2)?; // Quat 5 -> binary 10
+    // Čitamo nazad iz RAM-a
+    let val = ram.read_quat(0)?;
+    println!("Pročitana vrednost sa RAM adrese 0: {}", val);
 
-    // Read back the quats
-    assert_eq!(ram.read_quat(0)?, 3);
-    assert_eq!(ram.read_quat(1)?, 1);
-    assert_eq!(ram.read_quat(5)?, 2);
-
-    // Unwritten addresses default to 0
-    assert_eq!(ram.read_quat(2)?, 0);
-
-    println!("Quat RAM simulation ran successfully!");
+    println!("\nSve radi savršeno!");
     Ok(())
 }
+
 ```
 
 ## 🛠 Running Tests
