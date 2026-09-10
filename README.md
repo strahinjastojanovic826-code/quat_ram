@@ -1,6 +1,9 @@
-# Quat RAM Library
+!!!NOTE!!!
+For a newer version of the library, visit crates.io
 
-A lightweight, high-performance Rust library for simulating a RAM architecture operating on **quats** (2-bit values representing 4 states: `0` to `3`).
+# Quat RAM and CPU Library
+
+A lightweight, high-performance Rust library for simulating a RAM and CPU architecture operating on **quats** (2-bit values representing 4 states: `0` to `3`).
 
 Designed to be hardware-agnostic, crash-proof, and fully optimized using ultra-fast bitwise operations.
 
@@ -30,26 +33,47 @@ Here is a quick example showing how to initialize the RAM, write quats, and read
 
 ```rust
 
-use quat_ram::{QuatCpu, QuatRam, CpuError};
+use quat_ram::{CpuError, Quat, QuatCpu, QuatRam, StaticQuatRam};
 
 fn main() -> Result<(), CpuError> {
-    println!("--- Emulacija CPU-a ---");
+    println!("=== 1. Quat Basics & Display ===");
+    let q1 = Quat::Q3; // Binary 11 (Value 3)
+    let q2 = Quat::Q1; // Binary 01 (Value 1)
+    
+    // Display trait allows direct printing
+    println!("q1: {}, q2: {}", q1, q2); 
+
+    // Bitwise operation on Quats
+    let and_result = q1 & q2;
+    println!("q1 AND q2 = {} (Value: {})", and_result, and_result.value());
+
+    println!("\n=== 2. CPU Operations ===");
     let mut cpu = QuatCpu::new();
-    // Učitavamo bitove 1 i 1 (što daju kvat vrednost 3) u registar 0
-    cpu.load(0, 1, 1)?;
-    println!("Vrednost u registru 0: {}", cpu.registers[0]);
+    
+    // Load values into registers
+    cpu.load(0, 1, 1)?; // Load 3 into reg[0]
+    cpu.load(1, 0, 1)?; // Load 1 into reg[1]
 
-    println!("\n--- Emulacija RAM-a ---");
-    let mut ram = QuatRam::new(8);
-    // Upisujemo kvat vrednosti (0..3) na adrese u RAM-u
-    ram.write_quat(0, 3)?;
-    ram.write_quat(1, 1)?;
+    // Perform bitwise AND on registers
+    cpu.and_regs(0, 1, 2)?; // reg[2] = reg[0] & reg[1]
+    println!("CPU Reg[2] after AND: {}", cpu.registers[2]);
 
-    // Čitamo nazad iz RAM-a
-    let val = ram.read_quat(0)?;
-    println!("Pročitana vrednost sa RAM adrese 0: {}", val);
+    println!("\n=== 3. Heap RAM (QuatRam) ===");
+    let mut ram = QuatRam::new(16); // Dynamic RAM for 16 quats
+    ram.write_quat(0, Quat::Q2)?;
+    ram.write_quat(1, 3)?; // Accepts raw integer (u8) via TryInto
 
-    println!("\nSve radi savršeno!");
+    println!("RAM[0]: {}", ram.read_quat(0)?);
+    println!("RAM[1]: {}", ram.read_quat(1)?);
+
+    println!("\n=== 4. Stack RAM (StaticQuatRam) ===");
+    // Fixed-size RAM on stack (4 bytes holding up to 16 quats)
+    let mut static_ram = StaticQuatRam::<4>::new(16)?;
+    static_ram.write_quat(5, Quat::Q3)?;
+    
+    let value = static_ram.read_quat(5)?;
+    println!("Static RAM Address 5: {}", value);
+
     Ok(())
 }
 
