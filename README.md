@@ -13,6 +13,20 @@ Designed to be hardware-agnostic, crash-proof, and fully optimized using ultra-f
 * **Crash-Proof Design:** Uses Rust's `Result<T, CpuError>` for explicit error handling, eliminating runtime panics.
 * **Static & Heap Allocation:** Supports both heap-allocated `QuatRam` and stack-allocated `StaticQuatRam` for embedded environments.
 * **Arithmetic & Logic Operators:** Implements native Rust operator overloads (`+`, `-`, `&`, `|`, `^`, `!`) directly on the `Quat` type.
+* **Unified Memory Abstraction:** Unified `Ram` trait enabling seamless interchangeability between heap-allocated and stack-allocated memory modules.
+* **Execution Tracing:** Built-in CPU state tracing (`trace()`) for effortless step-by-step debugging and execution monitoring.
+* **Bulk Memory Operations:** High-performance range manipulation methods (such as `memset`) for efficient buffer management.
+
+---
+
+## Licensing
+
+This project is dual-licensed:
+
+* **Open Source (AGPLv3):** Free to use for open-source projects. If you use or modify this library in your software or network service, your source code must also be open-source under AGPLv3.
+* **Commercial License:** Required if you want to use `quat_ram` in closed-source or proprietary commercial software without AGPLv3 restrictions.
+
+For commercial licensing, contact: **strahinjastojanovic826@gmail.com**
 
 ---
 
@@ -28,7 +42,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-quat_ram = "3.0.1"
+quat_ram = "3.1.0"
 ```
 
 ## 💡 Quick Start
@@ -88,6 +102,7 @@ fn main() -> Result<(), CpuError> {
 
     Ok(())
 }
+```
 
 FOR C C++
 
@@ -120,6 +135,7 @@ int main() {
     quat_ram_free(ram);
     return 0;
 }
+```
 
 FOR C#
 

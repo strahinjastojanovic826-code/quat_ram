@@ -29,6 +29,16 @@ impl QuatRam {
         }
     }
 
+    pub fn memset(&mut self, start_addr: usize, len: usize, value: Quat) -> Result<(), CpuError> {
+        if start_addr + len > self.capacity_in_quats {
+            return Err(CpuError::InvalidAddress);
+        }
+        for i in 0..len {
+            self.write_quat(start_addr + i, value)?;
+        }
+        Ok(())
+    }
+
     /// Writes a quat value (accepts both `u8` or `Quat`) to the specified quat address.
     pub fn write_quat(&mut self, quat_addr: usize, value: impl TryInto<Quat>) -> Result<(), CpuError> {
         if quat_addr >= self.capacity_in_quats {
@@ -114,5 +124,30 @@ impl<const N: usize> StaticQuatRam<N> {
 
         let quat_val = (self.data[byte_index] >> bit_shift) & 0b11;
         Ok(Quat::from_u8_unchecked(quat_val))
+    }
+}
+
+pub trait Ram {
+    fn read_quat(&self, quat_addr: usize) -> Result<Quat, CpuError>;
+    fn write_quat(&mut self, quat_addr: usize, value: impl TryInto<Quat>) -> Result<(), CpuError>;
+}
+
+impl Ram for QuatRam {
+    fn read_quat(&self, quat_addr: usize) -> Result<Quat, CpuError> {
+        self.read_quat(quat_addr)
+    }
+
+    fn write_quat(&mut self, quat_addr: usize, value: impl TryInto<Quat>) -> Result<(), CpuError> {
+        self.write_quat(quat_addr, value)
+    }
+}
+
+impl<const N: usize> Ram for StaticQuatRam<N> {
+    fn read_quat(&self, quat_addr: usize) -> Result<Quat, CpuError> {
+        self.read_quat(quat_addr)
+    }
+
+    fn write_quat(&mut self, quat_addr: usize, value: impl TryInto<Quat>) -> Result<(), CpuError> {
+        self.write_quat(quat_addr, value)
     }
 }

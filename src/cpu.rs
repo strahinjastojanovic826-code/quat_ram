@@ -10,6 +10,14 @@ pub struct QuatCpu {
     pub overflow_flag: bool,
 }
 
+#[derive(Debug, Clone)]
+pub struct CpuTrace {
+    pub pc: usize,
+    pub registers: [Quat; 4],
+    pub zero_flag: bool,
+    pub overflow_flag: bool,
+}
+
 impl QuatCpu {
     /// Initializes CPU with all 4 registers set to Quat::Q0.
     pub fn new() -> Self {
@@ -80,6 +88,15 @@ impl QuatCpu {
         Ok(borrow)
     }
 
+    pub fn trace(&self) -> CpuTrace {
+        CpuTrace {
+            pc: self.pc,
+            registers: self.registers,
+            zero_flag: self.zero_flag,
+            overflow_flag: self.overflow_flag,
+        }
+    }
+
     /// Performs bitwise AND between `src1` and `src2`, saving to `dest`.
     pub fn and_regs(&mut self, src1: usize, src2: usize, dest: usize) -> Result<(), CpuError> {
         if src1 >= 4 || src2 >= 4 || dest >= 4 {
@@ -148,9 +165,13 @@ impl QuatCpu {
                 self.zero_flag = self.registers[0] == Quat::Q0;
             }
             Quat::Q3 => {
-                self.pc = 0;
-                return Ok(());
-            }
+    // Primer: Skok ako nula zastavica (zero_flag) NIJE postavljena
+    let target_addr = 5; // Primer adrese ili učitano iz memorije/registra
+    if !self.zero_flag {
+        self.pc = target_addr;
+    }
+    return Ok(());
+}
         }
 
         self.pc += 1;

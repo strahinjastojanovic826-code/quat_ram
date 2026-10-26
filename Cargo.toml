@@ -1,6 +1,6 @@
 [package]
 name = "quat_ram"
-version = "3.0.1"
+version = "3.1.0"
 edition = "2024"
 authors = ["Strale <strahinjastojanovic826@gmail.com>"]
 description = "Hardware-agnostic 2-bit quat RAM and CPU simulation library."

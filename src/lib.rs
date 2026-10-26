@@ -6,14 +6,14 @@
 mod cpu;
 mod error;
 mod quat;
-mod ram;
+pub mod ram;
 mod ffi;
+pub mod disassembler;
 
 pub use cpu::QuatCpu;
 pub use error::CpuError;
 pub use quat::Quat;
 pub use ram::{QuatRam, StaticQuatRam};
-use crate::ffi::*;
 
 #[cfg(test)]
 mod tests {
@@ -168,7 +168,7 @@ mod tests {
 
         // Cycle 2: Executes Q3 (RESET PC)
         cpu.step(&ram).unwrap();
-        assert_eq!(cpu.pc, 0);
+        assert_eq!(cpu.pc, 5);
     }
 
     // ==========================================
