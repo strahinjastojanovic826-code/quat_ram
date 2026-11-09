@@ -147,6 +147,14 @@ impl QuatCpu {
         }
     }
 
+    pub fn load_immediate(&mut self, reg: usize, val: Quat) -> Result<(), CpuError> {
+    if reg >= self.registers.len() {
+        return Err(CpuError::InvalidRegister);
+    }
+    self.registers[reg] = val;
+    Ok(())
+}
+
     pub fn step(&mut self, ram: &crate::ram::QuatRam) -> Result<(), CpuError> {
         let instr_quat = ram.read_quat(self.pc)?;
 

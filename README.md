@@ -16,6 +16,9 @@ Designed to be hardware-agnostic, crash-proof, and fully optimized using ultra-f
 * **Unified Memory Abstraction:** Unified `Ram` trait enabling seamless interchangeability between heap-allocated and stack-allocated memory modules.
 * **Execution Tracing:** Built-in CPU state tracing (`trace()`) for effortless step-by-step debugging and execution monitoring.
 * **Bulk Memory Operations:** High-performance range manipulation methods (such as `memset`) for efficient buffer management.
+* **Text Assembler:** Built-in parser (`assembler.rs`) for converting human-readable instructions (`NOP`, `ADD`, `SUB`, `JUMP`) directly into `Quat` machine code.
+* **Immediate Addressing:** Direct constant loading into CPU registers via `load_immediate()`.
+* **Multi-Core Thread Safety:** Safe multi-threaded CPU execution sharing `StaticQuatRam` utilizing `Arc<Mutex<T>>` architecture.
 
 ---
 
@@ -33,8 +36,27 @@ For commercial licensing, contact: **strahinjastojanovic826@gmail.com**
 **What's improved for users:**
 * Demonstrates how the new `+` and `-` operators work directly on the `Quat` type.
 * Added an example for the CPU `sub` method and how to retrieve `carry` and `borrow` flags.
+* **Added Assembler Support:** Easily compile text instruction scripts into execution-ready `Quat` vectors.
+* **Added Multi-Core Simulation:** Safely run concurrent CPU cores over shared memory buffers.
 
 ---
+
+## 🚀 Benchmark and results:
+
+| Test Name | Metric / Description | Measured Result |
+| :--- | :--- | :--- |
+| **RAM Bit-Packing** (`test_ram_packing`) | Logical Quats / Uncompressed / Packed | 10 Quats / 10 bytes / ~34 bytes (-240% ratio)[cite: 22] |
+| **Bounds Check Guard** (`test_out_of_bounds_errors`) | Checks Performed / Guard Overhead | 1,000,000 checks / 13,120,081.67 checks/sec[cite: 22] |
+| **Static Stack RAM** (`test_static_ram`) | Stack Buffer Size / Access Throughput | 16 bytes / 33,186,758.48 operations/sec[cite: 23] |
+| **CPU Execution Cycle** (`test_cpu_ram_execution_cycle`) | Cycle Frequency / Avg Step Latency | 9,296,704.32 cycles/sec / 53ns per step[cite: 23] |
+| **CPU Add & Carry** (`test_cpu_add_and_carry`) | Operations / Throughput | 500,000 ops / 28,122,750.18 ops/sec[cite: 24] |
+| **CPU Sub & Borrow** (`test_cpu_sub_and_borrow`) | Operations / Throughput | 500,000 ops / 24,998,875.05 ops/sec[cite: 24] |
+| **CPU Logic Instructions** (`test_cpu_logic_ops`) | Cycles / Instruction Rate | 500,000 cycles / 40,728,054.71 inst/sec[cite: 24, 25] |
+| **Quat Conversion** (`test_quat_conversion`) | Iterations / Total Time / Throughput | 1,000,000 / 24.4972ms / 40,820,991.79 conversions/sec[cite: 25] |
+| **FFI Interop Overhead** (`test_ffi_interface`) | FFI Cycles / Throughput | 50,000 cycles / 1,978,106.32 cycles/sec[cite: 25, 26] |
+| **1M Quats RAM Stress** (`test_stress_million_quats_ram`) | Allocation / Write / Read Speed | 0.24 MB RAM / 49.1µs alloc / 21,619,985.51 M quats/sec write / 58,200,442.32 reads/sec[cite: 26, 27] |
+| **Quat Arithmetic** (`test_quat_add_sub_operators`) | Arithmetic Rounds / Throughput | 1,000,000 rounds / 42,332,208.35 calc/sec[cite: 26, 27] |
+| **Quat Bitwise Ops** (`test_quat_bitwise_ops_and_display`) | Batches / Total Ops / Throughput | 2M batches (8M ops) / 50,727,817.36 ops/sec[cite: 27] |
 
 ## 📦 Installation
 
@@ -42,7 +64,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-quat_ram = "3.1.0"
+quat_ram = "3.2.0"
 ```
 
 ## 💡 Quick Start
@@ -99,6 +121,16 @@ fn main() -> Result<(), CpuError> {
 
     let value = static_ram.read_quat(5)?;
     println!("Static RAM Address 5: {}, value: {}", value, value.value());
+
+    println!("\n=== 5. Assembler Demo ===");
+let assembly_code = "
+    NOP
+    ADD
+    SUB
+    JUMP
+";
+let compiled_quats = quat_ram::assembler::Assembler::assemble(assembly_code).unwrap();
+println!("Compiled {} instructions from text assembly.", compiled_quats.len());
 
     Ok(())
 }
