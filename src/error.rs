@@ -8,6 +8,8 @@ pub enum CpuError {
     InvalidAddress,
     /// Value exceeds 2-bit quat range (must be 0..=3 or bit values 0/1)
     InvalidValue,
+    /// CPU execution has halted
+    Halted,
 }
 
 impl fmt::Display for CpuError {
@@ -16,6 +18,7 @@ impl fmt::Display for CpuError {
             Self::InvalidRegister => write!(f, "Requested register index does not exist (valid range: 0..=3)"),
             Self::InvalidAddress => write!(f, "Requested RAM address is out of bounds"),
             Self::InvalidValue => write!(f, "Value exceeds 2-bit quat range (must be 0..=3 or bit values 0/1)"),
+            Self::Halted => write!(f, "CPU execution has halted"),
         }
     }
 }

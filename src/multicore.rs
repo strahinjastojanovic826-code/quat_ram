@@ -3,6 +3,7 @@ use std::thread;
 use crate::cpu::QuatCpu;
 use crate::ram::StaticQuatRam;
 use crate::quat::Quat;
+use crate::CpuError;
 
 pub struct MultiCoreSystem;
 
@@ -35,6 +36,44 @@ impl MultiCoreSystem {
 
         handle1.join().unwrap();
         handle2.join().unwrap();
+
+        Ok(())
+    }
+
+    /// Runs two CPU cores executing steps against a shared `StaticQuatRam<64>`.
+    pub fn run_cpu_cores_step(&self, steps_per_core: usize) -> Result<(), String> {
+        let ram = Arc::new(Mutex::new(
+            StaticQuatRam::<64>::new(64).map_err(|e| e.to_string())?,
+        ));
+
+        let ram1 = Arc::clone(&ram);
+        let handle1 = thread::spawn(move || -> Result<(), CpuError> {
+            let mut cpu1 = QuatCpu::new();
+            for _ in 0..steps_per_core {
+                let ram_guard = ram1.lock().map_err(|_| CpuError::InvalidAddress)?;
+                cpu1.step(&*ram_guard)?;
+            }
+            Ok(())
+        });
+
+        let ram2 = Arc::clone(&ram);
+        let handle2 = thread::spawn(move || -> Result<(), CpuError> {
+            let mut cpu2 = QuatCpu::new();
+            for _ in 0..steps_per_core {
+                let ram_guard = ram2.lock().map_err(|_| CpuError::InvalidAddress)?;
+                cpu2.step(&*ram_guard)?;
+            }
+            Ok(())
+        });
+
+        handle1
+            .join()
+            .map_err(|_| "Thread 1 panicked".to_string())?
+            .map_err(|e| e.to_string())?;
+        handle2
+            .join()
+            .map_err(|_| "Thread 2 panicked".to_string())?
+            .map_err(|e| e.to_string())?;
 
         Ok(())
     }

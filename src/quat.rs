@@ -51,6 +51,26 @@ impl Quat {
             _ => Quat::Q3,
         }
     }
+    /// Compares two quaternary values for equality.
+    pub const fn eq_quat(self, other: Self) -> bool {
+        self.value() == other.value()
+    }
+
+    /// Rotates the 2-bit quaternary value left by `shift` positions modulo 4.
+    pub const fn rotl_quat(self, shift: u32) -> Self {
+        let s = shift & 1;
+        let v = self.value();
+        let rotated = ((v << s) | (v >> (2 - s))) & 0b11;
+        Self::from_u8_unchecked(rotated)
+    }
+
+    /// Rotates the 2-bit quaternary value right by `shift` positions modulo 4.
+    pub const fn rotr_quat(self, shift: u32) -> Self {
+        let s = shift & 1;
+        let v = self.value();
+        let rotated = ((v >> s) | (v << (2 - s))) & 0b11;
+        Self::from_u8_unchecked(rotated)
+    }
 }
 
 impl TryFrom<u8> for Quat {

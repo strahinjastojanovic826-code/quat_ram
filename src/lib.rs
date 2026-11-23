@@ -17,9 +17,8 @@ pub use error::CpuError;
 pub use quat::Quat;
 pub use ram::{QuatRam, StaticQuatRam};
 
-use crate::multicore::MultiCoreSystem;
-    use crate::assembler::Assembler;
-    use crate::ffi::*;
+    
+    
 
 
 #[cfg(test)]
@@ -27,6 +26,12 @@ mod tests {
     use super::*;
     use std::time::Instant;
     use std::mem;
+    use ffi::*;
+    use crate::assembler::Assembler;
+    use crate::multicore::MultiCoreSystem;
+    use crate::ram::Ram;
+    use crate::cpu::QuatInstruction;
+    use crate::cpu::CpuDebugger;
 
     #[test]
     fn test_quat_conversion() {
@@ -402,5 +407,136 @@ fn test_multicore_simulation() {
     let result = MultiCoreSystem::run_shared_ram_simulation();
     assert!(result.is_ok());
 }
+
+#[test]
+    fn test_ram_bulk_and_static_bounds() {
+        let mut ram = QuatRam::new(16);
+        let payload = [Quat::Q0, Quat::Q1, Quat::Q2, Quat::Q3, Quat::Q1, Quat::Q2];
+
+        let iterations = 100_000;
+        let start = Instant::now();
+        for _ in 0..iterations {
+            ram.write_bulk(2, &payload).unwrap();
+            let _ = ram.read_bulk(2, payload.len()).unwrap();
+        }
+        let duration = start.elapsed();
+
+        println!("\n[METRICS: RAM Bulk Read/Write]");
+        println!("  Iterations:  {}", iterations);
+        println!("  Total time:  {:?}", duration);
+        println!(
+            "  Throughput:  {:.2} batches/sec",
+            iterations as f64 / duration.as_secs_f64()
+        );
+
+        let read_back = ram.read_bulk(2, payload.len()).unwrap();
+        assert_eq!(read_back, payload);
+
+        let mut s_ram = StaticQuatRam::<4>::new(8).unwrap();
+        assert_eq!(
+            s_ram.write_quat(8, Quat::Q1),
+            Err(CpuError::InvalidAddress)
+        );
+        assert_eq!(ram.write_bulk(14, &payload), Err(CpuError::InvalidAddress));
+    }
+
+    #[test]
+    fn test_quat_rotations_compare_and_cpu_decode_halt() {
+        let q = Quat::Q2;
+        assert!(q.eq_quat(Quat::Q2));
+        assert!(!q.eq_quat(Quat::Q1));
+        assert_eq!(Quat::Q1.rotl_quat(1), Quat::Q2);
+        assert_eq!(Quat::Q2.rotr_quat(1), Quat::Q1);
+
+        let mut cpu = QuatCpu::new();
+        cpu.load_immediate(0, Quat::Q2).unwrap();
+        cpu.load_immediate(1, Quat::Q2).unwrap();
+        assert!(cpu.cmp_regs(0, 1).unwrap());
+        assert!(cpu.zero_flag);
+
+        let iterations = 500_000;
+        let start = Instant::now();
+        for _ in 0..iterations {
+            cpu.rotl_reg(0, 2, 1).unwrap();
+            let _ = cpu.cmp_regs(0, 1).unwrap();
+        }
+        let duration = start.elapsed();
+
+        println!("\n[METRICS: Quat Rotations & Register Compare]");
+        println!("  Iterations:  {}", iterations);
+        println!("  Total time:  {:?}", duration);
+        println!(
+            "  Throughput:  {:.2} pairs/sec",
+            iterations as f64 / duration.as_secs_f64()
+        );
+
+        let mut ram = QuatRam::new(4);
+        ram.write_quat(0, Quat::Q1).unwrap();
+        let decoded = cpu.decode_next(&ram).unwrap();
+        assert_eq!(
+            decoded,
+            QuatInstruction::Add {
+                src1: 0,
+                src2: 1,
+                dest: 0
+            }
+        );
+
+        cpu.halt();
+        assert!(cpu.halted);
+        assert_eq!(cpu.step(&ram), Err(CpuError::Halted));
+    }
+
+    #[test]
+    fn test_assembler_labels_disassembler_debugger_and_serialization() {
+        let script = "
+            ; Start program
+            START: NOP ; inline comment
+            ADD
+            SUB
+            JUMP
+        ";
+        let assembler = Assembler;
+        let quats = assembler.assemble_with_labels(script).unwrap();
+        assert_eq!(quats, vec![Quat::Q0, Quat::Q1, Quat::Q2, Quat::Q3]);
+
+        let mut ram = QuatRam::new(16);
+        ram.write_bulk(0, &quats).unwrap();
+
+        let disasm = crate::disassembler::disassemble_to_string(&ram, 4);
+        assert!(disasm.contains("0: NOP"));
+        assert!(disasm.contains("3: JNZ"));
+
+        let mut cpu = QuatCpu::new();
+        cpu.load_immediate(0, Quat::Q2).unwrap();
+        cpu.load_immediate(1, Quat::Q1).unwrap();
+
+        let mut debugger = CpuDebugger::new(8);
+        debugger.add_breakpoint(1);
+
+        let iterations = 100_000;
+        let start = Instant::now();
+        for _ in 0..iterations {
+            cpu.reset();
+            cpu.load_immediate(0, Quat::Q2).unwrap();
+            cpu.load_immediate(1, Quat::Q1).unwrap();
+            let _ = cpu.step_with_debugger(&ram, &mut debugger, false).unwrap();
+            let snap = cpu.to_bytes();
+            cpu = QuatCpu::from_bytes(&snap).unwrap();
+        }
+        let duration = start.elapsed();
+
+        println!("\n[METRICS: Debugger + CPU Snapshot Roundtrip]");
+        println!("  Iterations:  {}", iterations);
+        println!("  Total time:  {:?}", duration);
+        println!(
+            "  Throughput:  {:.2} cycles/sec",
+            iterations as f64 / duration.as_secs_f64()
+        );
+
+        let ram_bytes = ram.to_bytes();
+        let restored_ram = QuatRam::from_bytes(16, &ram_bytes).unwrap();
+        assert_eq!(restored_ram.read_bulk(0, 4).unwrap(), quats);
+    }
 
 }

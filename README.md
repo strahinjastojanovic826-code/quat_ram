@@ -19,6 +19,12 @@ Designed to be hardware-agnostic, crash-proof, and fully optimized using ultra-f
 * **Text Assembler:** Built-in parser (`assembler.rs`) for converting human-readable instructions (`NOP`, `ADD`, `SUB`, `JUMP`) directly into `Quat` machine code.
 * **Immediate Addressing:** Direct constant loading into CPU registers via `load_immediate()`.
 * **Multi-Core Thread Safety:** Safe multi-threaded CPU execution sharing `StaticQuatRam` utilizing `Arc<Mutex<T>>` architecture.
+* **Instruction Decoding & Halt Control:** Separates decoding (`QuatInstruction`, `decode_next`) from execution (`execute`) over generic `Ram` implementations, with explicit `halted` state and `CpuError::Halted`.
+* **Extended Quaternary Logic & Flags:** Adds 2-bit rotations (`rotl_quat`, `rotr_quat`), register comparison (`cmp_regs`), and unified `zero_flag` / `overflow_flag` updates across ALU operations.
+* **Labels & Disassembly Output:** Supports label syntax and inline `;` comments in `Assembler::assemble_with_labels`, alongside string disassembly via `disassemble_to_string`.
+* **Breakpoints & Step History (`CpuDebugger`):** Tracks recent `CpuTrace` snapshots and supports address breakpoints during stepped execution.
+* **State Serialization & Restore:** Provides compact byte serialization and restoration (`to_bytes` / `from_bytes`) for `QuatRam`, `StaticQuatRam`, and `QuatCpu`.
+* **Expanded FFI Status & Controls:** Introduces `FfiStatus` error codes and C-ABI functions for bulk RAM writes, CPU reset, and halt state inspection/control.
 
 ---
 
@@ -43,20 +49,23 @@ For commercial licensing, contact: **strahinjastojanovic826@gmail.com**
 
 ## 🚀 Benchmark and results:
 
-| Test Name | Metric / Description | Measured Result |
-| :--- | :--- | :--- |
-| **RAM Bit-Packing** (`test_ram_packing`) | Logical Quats / Uncompressed / Packed | 10 Quats / 10 bytes / ~34 bytes (-240% ratio)[cite: 22] |
-| **Bounds Check Guard** (`test_out_of_bounds_errors`) | Checks Performed / Guard Overhead | 1,000,000 checks / 13,120,081.67 checks/sec[cite: 22] |
-| **Static Stack RAM** (`test_static_ram`) | Stack Buffer Size / Access Throughput | 16 bytes / 33,186,758.48 operations/sec[cite: 23] |
-| **CPU Execution Cycle** (`test_cpu_ram_execution_cycle`) | Cycle Frequency / Avg Step Latency | 9,296,704.32 cycles/sec / 53ns per step[cite: 23] |
-| **CPU Add & Carry** (`test_cpu_add_and_carry`) | Operations / Throughput | 500,000 ops / 28,122,750.18 ops/sec[cite: 24] |
-| **CPU Sub & Borrow** (`test_cpu_sub_and_borrow`) | Operations / Throughput | 500,000 ops / 24,998,875.05 ops/sec[cite: 24] |
-| **CPU Logic Instructions** (`test_cpu_logic_ops`) | Cycles / Instruction Rate | 500,000 cycles / 40,728,054.71 inst/sec[cite: 24, 25] |
-| **Quat Conversion** (`test_quat_conversion`) | Iterations / Total Time / Throughput | 1,000,000 / 24.4972ms / 40,820,991.79 conversions/sec[cite: 25] |
-| **FFI Interop Overhead** (`test_ffi_interface`) | FFI Cycles / Throughput | 50,000 cycles / 1,978,106.32 cycles/sec[cite: 25, 26] |
-| **1M Quats RAM Stress** (`test_stress_million_quats_ram`) | Allocation / Write / Read Speed | 0.24 MB RAM / 49.1µs alloc / 21,619,985.51 M quats/sec write / 58,200,442.32 reads/sec[cite: 26, 27] |
-| **Quat Arithmetic** (`test_quat_add_sub_operators`) | Arithmetic Rounds / Throughput | 1,000,000 rounds / 42,332,208.35 calc/sec[cite: 26, 27] |
-| **Quat Bitwise Ops** (`test_quat_bitwise_ops_and_display`) | Batches / Total Ops / Throughput | 2M batches (8M ops) / 50,727,817.36 ops/sec[cite: 27] |
+| Test / Benchmark Block | Status | Iterations / Volume | Timing / Memory / Extra Metric | Throughput / Latency |
+| :--- | :--- | :--- | :--- | :--- |
+| Error Guard & Bounds Checking Overhead (`test_out_of_bounds_errors`) | `ok` | 1,000,000 checks | — | 104,743,848.92 checks/sec |
+| CPU Add & Carry Evaluation (`test_cpu_add_and_carry`) | `ok` | 500,000 operations | Carry triggers: 500,000 | 25,593,120.57 ops/sec |
+| CPU Subtraction & Borrow Flag (`test_cpu_sub_and_borrow`) | `ok` | 500,000 operations | Borrow triggers: 500,000 | 15,242,554.77 ops/sec |
+| RAM Bit-Packing & Compression (`test_ram_packing`) | `ok` | 10 logical quats | Uncompressed: 10 bytes; Packed: ~34 bytes | Memory savings ratio: -240.0% |
+| Static Stack-Allocated RAM (`test_static_ram`) | `ok` | 200,000 access cycles | Stack buffer size: 16 bytes | 25,665,045.49 operations/sec |
+| CPU Execution Cycle & IPS (`test_cpu_ram_execution_cycle`) | `ok` | 100,000 full cycles (200,000 total steps) | Avg step latency: 207ns | 2,410,684.15 cycles/sec |
+| Quat Rotations & Register Compare (`test_quat_rotations_compare_and_cpu_decode_halt`) | `ok` | 500,000 iterations | Total time: 51.5514ms | 9,699,057.64 pairs/sec |
+| CPU Logic Instructions (`test_cpu_logic_ops`) | `ok` | 500,000 cycles | — | 18,307,038.32 inst/sec |
+| FFI Interop Overhead (`test_ffi_interface`) | `ok` | 50,000 FFI cycles | — | 884,738.09 cycles/sec |
+| Quat Conversion (`test_quat_conversion`) | `ok` | 1,000,000 iterations | Total time: 56.8714ms | 17,583,530.56 conversions/sec |
+| Debugger + CPU Snapshot Roundtrip (`test_assembler_labels_disassembler_debugger_and_serialization`) | `ok` | 100,000 iterations | Total time: 85.9367ms | 1,163,647.20 cycles/sec |
+| 1M Quats RAM Stress & Throughput (`test_stress_million_quats_ram`) | `ok` | 1,000,000 quats capacity | Memory allocated: 250,000 bytes (0.24 MB); Allocation speed: 43.4µs | Sequential write: 1,969,395,592 M quats/sec; Sampled read: 59,662,311.32 reads/sec |
+| Quat Operator Overloading (Mod-4 Arithmetic) (`test_quat_add_sub_operators`) | `ok` | 1,000,000 arithmetic rounds | — | 36,576,076.87 calc/sec |
+| RAM Bulk Read/Write (`test_ram_bulk_and_static_bounds`) | `ok` | 100,000 iterations | Total time: 77.1803ms | 1,295,667.42 batches/sec |
+| Quat Bitwise Operations (`test_quat_bitwise_ops_and_display`) | `ok` | 2,000,000 batches (8,000,000 total ops) | — | 45,600,362.98 ops/sec |
 
 ## 📦 Installation
 
@@ -64,7 +73,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-quat_ram = "3.2.0"
+quat_ram = "3.3.0"
 ```
 
 ## 💡 Quick Start
@@ -136,6 +145,44 @@ println!("Compiled {} instructions from text assembly.", compiled_quats.len());
 }
 ```
 
+### Extended Features Example (Labels, Bulk RAM, Debugger & Snapshots)
+
+```rust
+use quat_ram::assembler::Assembler;
+use quat_ram::cpu::{CpuDebugger, QuatCpu};
+use quat_ram::error::CpuError;
+use quat_ram::quat::Quat;
+use quat_ram::ram::{QuatRam, Ram};
+
+fn main() -> Result<(), CpuError> {
+    let script = "
+        START: NOP ; inline comment
+        ADD
+        SUB
+    ";
+    let program = Assembler.assemble_with_labels(script)?;
+
+    let mut ram = QuatRam::new(16);
+    ram.write_bulk(0, &program)?;
+
+    let mut cpu = QuatCpu::new();
+    cpu.load_immediate(0, Quat::Q2)?;
+    cpu.load_immediate(1, Quat::Q1)?;
+
+    let mut debugger = CpuDebugger::new(4);
+    debugger.add_breakpoint(1);
+
+    let executed = cpu.step_with_debugger(&ram, &mut debugger, false)?;
+    println!("Executed step 0: {}, trace: {}", executed, cpu.trace());
+
+    let snapshot = cpu.to_bytes();
+    let restored_cpu = QuatCpu::from_bytes(&snapshot)?;
+    println!("Restored PC: {}, halted: {}", restored_cpu.pc, restored_cpu.halted);
+
+    Ok(())
+}
+```
+
 FOR C C++
 
 ```c
@@ -164,6 +211,62 @@ int main() {
         printf("Read quat from C: %d\n", result); // Prints 3
     }
 
+    quat_ram_free(ram);
+    return 0;
+}
+```
+
+### Extended C FFI Example (Bulk RAM Write, CPU Step, Halt & Reset)
+
+```c
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stddef.h>
+
+typedef enum {
+    CQUAT_Q0 = 0,
+    CQUAT_Q1 = 1,
+    CQUAT_Q2 = 2,
+    CQUAT_Q3 = 3
+} CQuat;
+
+void* quat_ram_new(size_t capacity_in_quats);
+void quat_ram_free(void* ram);
+int32_t quat_ram_write_bulk(void* ram, size_t start_addr, const CQuat* values, size_t len);
+int32_t quat_ram_read(const void* ram, size_t quat_addr, CQuat* out_val);
+
+void* quat_cpu_new(void);
+void quat_cpu_free(void* cpu);
+int32_t quat_cpu_step(void* cpu, const void* ram);
+int32_t quat_cpu_get_register(const void* cpu, size_t reg_idx, CQuat* out_val);
+int32_t quat_cpu_reset(void* cpu);
+int32_t quat_cpu_halt(void* cpu);
+int32_t quat_cpu_is_halted(const void* cpu, bool* out_halted);
+
+int main(void) {
+    void* ram = quat_ram_new(16);
+    void* cpu = quat_cpu_new();
+
+    CQuat program[2] = { CQUAT_Q1, CQUAT_Q0 };
+    if (ram && cpu && quat_ram_write_bulk(ram, 0, program, 2) == 0) {
+        quat_cpu_step(cpu, ram);
+
+        CQuat reg0 = CQUAT_Q0;
+        quat_cpu_get_register(cpu, 0, &reg0);
+        printf("R0 after step: %d\n", reg0);
+
+        bool halted = false;
+        quat_cpu_halt(cpu);
+        quat_cpu_is_halted(cpu, &halted);
+        printf("CPU halted: %d\n", halted ? 1 : 0);
+
+        quat_cpu_reset(cpu);
+        quat_cpu_is_halted(cpu, &halted);
+        printf("CPU halted after reset: %d\n", halted ? 1 : 0);
+    }
+
+    quat_cpu_free(cpu);
     quat_ram_free(ram);
     return 0;
 }
